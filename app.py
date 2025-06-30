@@ -8,6 +8,9 @@ import datetime
 import sys
 import streamlit as st
 
+os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+
+
 st.write("Python version:", sys.version)
 
 # === STREAMLIT UI ===
