@@ -1,5 +1,8 @@
-import streamlit as st
+
 import os
+
+os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+
 from dotenv import load_dotenv
 import pandas as pd
 from tavily import TavilyClient
@@ -8,7 +11,7 @@ import datetime
 import sys
 import streamlit as st
 
-os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+
 
 
 st.write("Python version:", sys.version)
