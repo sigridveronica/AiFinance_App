@@ -5,6 +5,11 @@ import pandas as pd
 from tavily import TavilyClient
 import datetime
 
+import sys
+import streamlit as st
+
+st.write("Python version:", sys.version)
+
 # === STREAMLIT UI ===
 st.set_page_config(page_title="AI Investing News Report", layout="centered")
 st.title("📰 AI Investing Deep News Tool")
