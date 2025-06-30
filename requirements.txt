@@ -1,3 +1,6 @@
+STREAMLIT_PYO3_OVERRIDE=1
+tokenizers==0.19.1
+
 streamlit==1.35.0
 transformers==4.41.1
 tokenizers==0.19.1        # ✅ Prebuilt binary; works with Python <=3.12
