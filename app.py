@@ -6,82 +6,80 @@ from tavily import TavilyClient
 import datetime
 import sys
 
-# Optional: Load .env if local
+# ✅ Must be first Streamlit call
+st.set_page_config(page_title="AI Investing News Report", layout="centered")
+
+# Load environment variables
 load_dotenv()
 
-# Ensures Rust compatibility with certain packages
+# Set compatibility for Rust/PyO3-related builds
 os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
 
-# Version info
+# Debug info (optional)
 st.write("Python version:", sys.version)
 
-# === STREAMLIT UI ===
-st.set_page_config(page_title="AI Investing News Report", layout="centered")
 st.title("📰 AI Investing Deep News Tool")
 
 st.markdown("""
-Enter your API keys below. We do **not** store them. They are only used during your session.
+Enter your API keys below. These are not stored and are only used during your session.
 """)
 
-openai_key = st.text_input("🔑 OpenAI API Key", type="password")
-tavily_key = st.text_input("🔍 Tavily API Key", type="password")
+# User input for Tavily API key
+tavily_api_key = st.text_input("🔑 Tavily API Key", type="password")
 
-keyword = st.text_input("Enter a topic (e.g., nuclear energy, AI, lithium):")
-days = st.slider("How many days of news?", min_value=1, max_value=30, value=7)
+# Get the search topic
+search_topic = st.text_input("💡 Investment Topic", value="Nuclear energy")
 
-if st.button("Generate Report"):
-    if not openai_key or not tavily_key:
-        st.error("Please enter both API keys.")
-    elif not keyword:
-        st.error("Please enter a topic keyword.")
+if st.button("Search News"):
+    if not tavily_api_key:
+        st.error("Please enter your Tavily API key.")
     else:
-        with st.spinner("Fetching and analyzing news..."):
-            try:
-                # Create Tavily client
-                tavily_client = TavilyClient(api_key=tavily_key)
+        try:
+            client = TavilyClient(api_key=tavily_api_key)
 
-                # Define search queries
-                queries = [
-                    keyword,
-                    f"{keyword} AND startup",
-                    f"{keyword} AND funding",
-                    f"{keyword} AND acquisition",
-                ]
+            queries = [
+                search_topic,
+                f"{search_topic} AND startup",
+                f"{search_topic} AND funding",
+                f"{search_topic} AND acquisition"
+            ]
 
-                all_results = []
+            all_results = []
+            for q in queries:
+                st.write(f"🔍 Tavily query: {q}")
+                response = client.search(
+                    query=q,
+                    search_depth="advanced",
+                    include_domains=["techcrunch.com", "crunchbase.com", "venturebeat.com"],
+                    max_results=5
+                )
+                results = response.get("results", [])
+                all_results.extend(results)
 
-                for query in queries:
-                    st.write(f"🔍 Tavily query: {query}")
-                    response = tavily_client.search(
-                        query=query,
-                        search_depth="advanced",
-                        max_results=5
-                    )
-                    results = response.get("results", [])
-                    all_results.extend(results)
+            st.success(f"✅ Collected {len(all_results)} articles")
 
-                if not all_results:
-                    st.warning("No articles found. Try a different topic.")
-                else:
-                    df = pd.DataFrame(all_results)
-                    st.success(f"✅ Collected {len(df)} articles")
+            # Create DataFrame
+            df = pd.DataFrame(all_results)
 
-                    # Display only existing columns
-                    columns_to_show = [col for col in ["title", "url", "published_date"] if col in df.columns]
-                    st.dataframe(df[columns_to_show])
+            # ✅ Handle missing columns gracefully
+            expected_cols = ["title", "url", "content", "published_date"]
+            for col in expected_cols:
+                if col not in df.columns:
+                    df[col] = ""
 
-                    # Save to markdown
-                    date_str = datetime.date.today().isoformat()
-                    md_path = f"{keyword.replace(' ', '_').lower()}_{date_str}.md"
+            # Format dates
+            if "published_date" in df.columns:
+                try:
+                    df["published_date"] = pd.to_datetime(df["published_date"], errors="coerce")
+                except Exception as e:
+                    st.warning(f"Couldn't parse dates: {e}")
 
-                    with open(md_path, "w") as f:
-                        for row in all_results:
-                            title = row.get("title", "No title")
-                            url = row.get("url", "No URL")
-                            date = row.get("published_date", "Date unknown")
-                            f.write(f"### {title}\n\n{url}\n\nPublished: {date}\n\n---\n\n")
+            # Display results
+            for idx, row in df.iterrows():
+                st.markdown(f"### [{row['title']}]({row['url']})")
+                st.markdown(f"*Published:* {row['published_date']}")
+                st.markdown(row["content"][:500] + "...")
+                st.markdown("---")
 
-                    st.markdown(f"📄 Markdown saved: `{md_path}`")
-
-            except Exception as e:
-                st.error(f"Error occurred: {e}")
+        except Exception as e:
+            st.error(f"Error occurred: {e}")
