@@ -4,32 +4,38 @@ from dotenv import load_dotenv
 import pandas as pd
 from tavily import TavilyClient
 import datetime
-import sys
 
-# ✅ Must be first Streamlit call
+# ✅ Set page config at the top
 st.set_page_config(page_title="AI Investing News Report", layout="centered")
 
-# Load environment variables
+# Load environment variables from .env
 load_dotenv()
 
-# Set compatibility for Rust/PyO3-related builds
-os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
-
-# Debug info (optional)
-st.write("Python version:", sys.version)
-
+# Input for API keys
 st.title("📰 AI Investing Deep News Tool")
 
 st.markdown("""
 Enter your API keys below. These are not stored and are only used during your session.
 """)
 
-# User input for Tavily API key
+openai_api_key = st.text_input("🔑 OpenAI API Key", type="password")
 tavily_api_key = st.text_input("🔑 Tavily API Key", type="password")
 
-# Get the search topic
+# Input for topic
 search_topic = st.text_input("💡 Investment Topic", value="Nuclear energy")
 
+# Slider for date range
+today = datetime.date.today()
+default_start = today - datetime.timedelta(days=30)
+date_range = st.slider(
+    "🗓️ Period filter",
+    min_value=today - datetime.timedelta(days=180),
+    max_value=today,
+    value=(default_start, today),
+    format="YYYY-MM-DD"
+)
+
+# Search button
 if st.button("Search News"):
     if not tavily_api_key:
         st.error("Please enter your Tavily API key.")
@@ -58,26 +64,26 @@ if st.button("Search News"):
 
             st.success(f"✅ Collected {len(all_results)} articles")
 
-            # Create DataFrame
+            # Convert to DataFrame
             df = pd.DataFrame(all_results)
 
-            # ✅ Handle missing columns gracefully
-            expected_cols = ["title", "url", "content", "published_date"]
-            for col in expected_cols:
+            # Ensure expected columns exist
+            for col in ["published_date", "title", "url", "content"]:
                 if col not in df.columns:
                     df[col] = ""
 
-            # Format dates
-            if "published_date" in df.columns:
-                try:
-                    df["published_date"] = pd.to_datetime(df["published_date"], errors="coerce")
-                except Exception as e:
-                    st.warning(f"Couldn't parse dates: {e}")
+            # Parse and filter by date
+            df["published_date"] = pd.to_datetime(df["published_date"], errors="coerce")
+            mask = (df["published_date"] >= pd.to_datetime(date_range[0])) & \
+                   (df["published_date"] <= pd.to_datetime(date_range[1]))
+            filtered_df = df[mask]
 
-            # Display results
-            for idx, row in df.iterrows():
+            st.markdown(f"### ✨ Showing {len(filtered_df)} articles from selected period")
+
+            for _, row in filtered_df.iterrows():
                 st.markdown(f"### [{row['title']}]({row['url']})")
-                st.markdown(f"*Published:* {row['published_date']}")
+                if pd.notnull(row["published_date"]):
+                    st.markdown(f"*Published:* {row['published_date'].strftime('%Y-%m-%d')}")
                 st.markdown(row["content"][:500] + "...")
                 st.markdown("---")
 
