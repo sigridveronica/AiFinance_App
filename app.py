@@ -1,23 +1,21 @@
-
 import os
-
-os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
-
-from dotenv import load_dotenv
+import sys
+import streamlit as st
 import pandas as pd
+from dotenv import load_dotenv
 from tavily import TavilyClient
 import datetime
 
-import sys
-import streamlit as st
+# MUST BE FIRST before any Streamlit UI calls
+st.set_page_config(page_title="AI Investing News Report", layout="centered")
 
+# Set environment variable to allow PyO3 (Rust) compatibility
+os.environ["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
 
-
-
+# Show Python version for debugging
 st.write("Python version:", sys.version)
 
 # === STREAMLIT UI ===
-st.set_page_config(page_title="AI Investing News Report", layout="centered")
 st.title("📰 AI Investing Deep News Tool")
 
 st.markdown("""
@@ -41,7 +39,7 @@ if st.button("Generate Report"):
                 # Create Tavily client
                 tavily_client = TavilyClient(api_key=tavily_key)
 
-                # Define prompts (simplified example)
+                # Define prompts
                 queries = [
                     keyword,
                     f"{keyword} AND startup",
@@ -67,10 +65,9 @@ if st.button("Generate Report"):
                     df = pd.DataFrame(all_results)
                     st.success(f"✅ Collected {len(df)} articles")
 
-                    # Save or show
                     st.dataframe(df[["title", "url", "published_date"]])
 
-                    # Optionally generate markdown
+                    # Save markdown
                     date_str = datetime.date.today().isoformat()
                     md_path = f"{keyword.replace(' ', '_').lower()}_{date_str}.md"
                     with open(md_path, "w") as f:
